@@ -35,13 +35,23 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Set minSdkVersion to 24 and bump versionCode
+      - name: Set SDK versions (min 24, compile/target 36) and bump versionCode
         working-directory: android
         run: |
           sed -i -E 's/minSdkVersion *= *[0-9]+/minSdkVersion = 24/' variables.gradle
+          sed -i -E 's/compileSdkVersion *= *[0-9]+/compileSdkVersion = 36/' variables.gradle
+          sed -i -E 's/targetSdkVersion *= *[0-9]+/targetSdkVersion = 36/' variables.gradle
+          echo "android.suppressUnsupportedCompileSdk=36" >> gradle.properties
           sed -i -E 's/versionCode [0-9]+/versionCode ${{ github.run_number }}/' app/build.gradle
-          grep -n "minSdkVersion" variables.gradle
+          grep -n "SdkVersion" variables.gradle
           grep -n "versionCode" app/build.gradle
+
+      # Remove this step if you answer "No" to the Advertising ID declaration in Play Console.
+      - name: Add AD_ID permission
+        working-directory: android
+        run: |
+          sed -i 's#<application#<uses-permission android:name="com.google.android.gms.permission.AD_ID" />\n    <application#' app/src/main/AndroidManifest.xml
+          grep -n "AD_ID" app/src/main/AndroidManifest.xml
 
       - name: Sync Capacitor
         run: npx cap sync android
@@ -53,7 +63,7 @@ jobs:
       - name: Configure Release Signing
         working-directory: android
         run: |
-          cat >> app/build.gradle <<'EOF'
+          cat >> app/build.gradle <<'GRADLE'
 
           android {
               signingConfigs {
@@ -71,7 +81,7 @@ jobs:
                   }
               }
           }
-          EOF
+          GRADLE
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
